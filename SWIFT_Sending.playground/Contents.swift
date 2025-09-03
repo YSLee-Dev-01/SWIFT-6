@@ -101,14 +101,17 @@ actor ProductManager {
 ///
 /// 소유권과 영역
 /// - 소유권은 이 값을 사용, 관리할 권한이 있는지
-/// - 영역은 이 값이 현재 어느 영역에 있는지
-/// -> 영역이 변경되면 소유권도 자연스럽게 변경됨
-/// -> sending 키워드는 영역을 변경하면서 소유권도 같이 변경함
+/// - 영역은 이 값이 현재 어느 영역에 있는지 (어느 격리 영역에 있는지)
+/// -> sending 키워드는
+///     - 호출 경계에서 소유권을 넘김(소비)
+///     - 함수의 매개변수로에는 Disconnected 상태로 전달받음
+///     - 함수에서 값을 actor에 저장, 다른 Connected와 조합될 때 Connected로 변경됨
 ///
 /// Actor와 Sending
 /// - Actor에 값을 할당한다고 해서 자동으로 sending이 되는 것은 아님
-/// -> 파라미터나 반환타입에 sending을 명시해야만 소유권이 변경됨
-/// - Actor에 값을 대입하는 경우 그 값이 actor영역에 Connected 되는 것
+/// -> 파라미터나 반환타입에 sending을 명시해야만 소유권, 영역이 변경됨
+/// - Actor에 값을 대입하는 경우 그 값이 actor영역에 Connected 되게됨
+/// -> 이 때 해당 값이 sendable이 아니고 actor에 저장되는 경우 sending과 동일하게 재사용이 불가함
 ///
 /// + 추가 개념
 /// - 서로 다른 actor 간에 값을 교환할 때에는 아래와 같은 규칙을 지켜야함
@@ -136,11 +139,50 @@ actor MyActor {
         self.data = data
     }
     
-    func sendData(_ data: sending MyData) {
+    func sendData(_ data: MyData) {
+        self.data = data
+    }
+}
+
+func test() {
+    let myActor = MyActor(data: .init())
+    let initData = MyData.init()
+    
+    Task {
+       // await myActor.sendData(initData) // 오류 발생
+        let initData2 = MyData.init()
+        await myActor.sendData(initData2)
+        // print(initData2) // 오류 발생
+    }
+    print("END")
+}
+
+struct MyData2: Sendable {}
+actor MyActor2 {
+    private var data: MyData2 = .init()
+    
+    init(data: MyData2) {
         self.data = data
     }
     
-//    func sendData(_ data: MyData) { // sendable 타입이 아닌 타입을 다른 actor로 전달할 때는 sending 키워드를 무조건 사용해야함
-//        self.data = data
-//    }
+    func sendData(_ data: MyData2) {
+        self.data = data
+    }
 }
+
+func test2() {
+    let myActor = MyActor2(data: .init())
+    let initData = MyData2.init()
+    
+    Task {
+       await myActor.sendData(initData) // 사용 가능
+        let initData2 = MyData2.init()
+        await myActor.sendData(initData2)
+        print(initData2) // 사용 가능
+    }
+    print("END")
+}
+
+
+test()
+test2()
