@@ -20,7 +20,7 @@ class SettingManager {
 ///
 /// Actor
 /// - 인스턴스 단위 별로 격리되는 구조
-/// -> 인스턴스 마다 별도로 직렬화됨
+/// -> 인스턴스마다 별도로 직렬화됨
 ///
 /// GlobalActor
 /// - 앱 전역 단위로 격리되는 구조
@@ -32,7 +32,6 @@ class SettingManager {
 /// GlobalActor를 만들 때는 내부에 shared 객체를 선언해야함
 /// - 처리순서를 보장하고 싶은 객체, 함수에 GlobalActor 이름을 붙여서 사용함
 /// - GlobalActor를 사용한 함수를 호출할 때는 Task{}, await를 통해 호출해야함
-
 
 @globalActor
 actor MemoManager {
@@ -113,3 +112,19 @@ func isolatedFunction(_ myActor: isolated MyActor) {
 Task {
     await isolatedFunction(actor)
 }
+
+/// print 결과문
+/*
+ 2: MyActor
+ 6: 2
+ 3: 0
+ 1: memo
+ 4: 1
+ 5: MyActor
+ */
+
+/// 동기코드인 2번은 가장 먼저 실행됨
+/// Task 내부에 감싸진 코드들은 병렬실행 되기 때문에 순서를 예측할 수 없음
+/// - Task의 스케줄링은 시스템이 결정함에 따라 실행순서를 보장하지 않음
+///
+/// 단, Actor의 접근하는 순간 직렬화를 보장하기 때문에 여러 Task에서 동시에 접근해도 순서대로 처리됨
